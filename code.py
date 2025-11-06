@@ -273,7 +273,7 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     </div>
     """, unsafe_allow_html=True)
 
-    # Gráfico da Dosimetria - VERSÃO MELHORADA
+    # Gráfico da Dosimetria - VERSÃO CORRIGIDA
     st.header("📊 Evolução da Dosimetria da Pena")
     
     # Calcular posições no gráfico
@@ -285,8 +285,8 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     else:
         pos_base = pos_ajustada = pos_final = 50
 
-    # Gráfico melhorado
-    html_grafico = f'''
+    # Gráfico melhorado usando st.components.v1.html
+    html_content = f'''
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; margin: 20px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
         <h4 style="text-align: center; margin-bottom: 30px; color: white; font-weight: 600;">Evolução da Dosimetria da Pena</h4>
         
@@ -348,7 +348,8 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     </div>
     '''
     
-    st.markdown(html_grafico, unsafe_allow_html=True)
+    # Usar st.components.v1.html para renderizar o HTML corretamente
+    st.components.v1.html(html_content, height=400)
     
     # Resumo final estilizado
     st.markdown(f"""
