@@ -241,49 +241,167 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     
     st.markdown(calculo_detalhado)
 
-    # Fase 5: Regime de Cumprimento
-    st.header("5️⃣ Fase 5: Regime de Cumprimento")
+    # Fase 5: Tipo de Pena Privativa
+    st.header("5️⃣ Fase 5: Tipo de Pena Privativa")
     
-    if pena_final > 8:
-        regime = "FECHADO"
-        cor_regime = "#ff4444"
-        descricao = "Presídio de segurança máxima/média"
-    elif pena_final >= 4:
-        regime = "SEMIABERTO"
-        cor_regime = "#ffaa00"
-        descricao = "Colônia agrícola, industrial ou similar"
+    # Determinar tipo de pena (Reclusão ou Detenção)
+    tipo_pena_info = crime_info.get('tipo_penal', '')
+    if 'Reclusão' in str(tipo_pena_info):
+        tipo_pena = "RECLUSÃO"
+        cor_tipo_pena = "#ff4444"
+        descricao_tipo = "Pena mais grave - Regimes: Fechado, Semiaberto ou Aberto"
+    elif 'Detenção' in str(tipo_pena_info):
+        tipo_pena = "DETENÇÃO"
+        cor_tipo_pena = "#ffaa00"
+        descricao_tipo = "Pena menos grave - Regimes: Semiaberto ou Aberto"
     else:
-        regime = "ABERTO"
-        cor_regime = "#44cc44"
-        descricao = "Casa de albergado, trabalho externo"
+        tipo_pena = "PENA PRIVATIVA DE LIBERDADE"
+        cor_tipo_pena = "#666666"
+        descricao_tipo = "Tipo de pena a ser definido conforme a natureza do crime"
+    
+    st.markdown(f"""
+    <div style="background-color: {cor_tipo_pena}20; padding: 15px; border-radius: 10px; border-left: 5px solid {cor_tipo_pena};">
+        <h3 style="color: {cor_tipo_pena}; margin: 0;">📋 TIPO DE PENA: {tipo_pena}</h3>
+        <p style="margin: 5px 0 0 0;">{descricao_tipo}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Fase 6: Regime de Cumprimento
+    st.header("6️⃣ Fase 6: Regime de Cumprimento")
+    
+    # Verificar reincidência
+    reincidente = "Reincidente específico" in agravantes
+    
+    # Determinar regime conforme Art. 33 CP
+    if tipo_pena == "RECLUSÃO":
+        if pena_final > 8:
+            regime = "FECHADO"
+            cor_regime = "#ff4444"
+            descricao = "Presídio de segurança máxima/média"
+            fundamento = "Art. 33, §2º, 'a' - Pena superior a 8 anos"
+        elif pena_final >= 4:
+            if not reincidente:
+                regime = "SEMIABERTO"
+                cor_regime = "#ffaa00"
+                descricao = "Colônia agrícola, industrial ou similar"
+                fundamento = "Art. 33, §2º, 'b' - Não reincidente, pena 4-8 anos"
+            else:
+                regime = "FECHADO"
+                cor_regime = "#ff4444"
+                descricao = "Presídio de segurança máxima/média"
+                fundamento = "Art. 33, §2º - Reincidente, pena 4-8 anos"
+        else:
+            if not reincidente:
+                regime = "ABERTO"
+                cor_regime = "#44cc44"
+                descricao = "Casa de albergado, trabalho externo"
+                fundamento = "Art. 33, §2º, 'c' - Não reincidente, pena até 4 anos"
+            else:
+                regime = "SEMIABERTO"
+                cor_regime = "#ffaa00"
+                descricao = "Colônia agrícola, industrial ou similar"
+                fundamento = "Art. 33, §2º - Reincidente, pena até 4 anos"
+    
+    else:  # DETENÇÃO
+        if pena_final >= 4:
+            regime = "SEMIABERTO"
+            cor_regime = "#ffaa00"
+            descricao = "Colônia agrícola, industrial ou similar"
+            fundamento = "Art. 33 - Detenção: regime semiaberto ou aberto"
+        else:
+            regime = "ABERTO"
+            cor_regime = "#44cc44"
+            descricao = "Casa de albergado, trabalho externo"
+            fundamento = "Art. 33 - Detenção: regime semiaberto ou aberto"
     
     st.markdown(f"""
     <div style="background-color: {cor_regime}20; padding: 20px; border-radius: 10px; border-left: 5px solid {cor_regime};">
         <h2 style="color: {cor_regime}; margin: 0;">🔒 REGIME {regime}</h2>
         <p style="margin: 10px 0 0 0; font-size: 16px;"><strong>{descricao}</strong></p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;"><em>{fundamento}</em></p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Fase 6: Substituição da Pena
-    st.header("6️⃣ Fase 6: Substituição da Pena")
+    # Fase 7: Substituição da Pena
+    st.header("7️⃣ Fase 7: Substituição por Pena Restritiva de Direitos")
     
+    # Verificar condições para substituição (Art. 44 CP)
+    pode_substituir = False
+    condicoes = []
+    
+    # Condição I: Pena até 4 anos e crime sem violência
     if pena_final <= 4:
+        condicoes.append("✅ Pena não superior a 4 anos")
+        # Verificar se é crime violento (simplificado)
+        crimes_violentos = ["homicídio", "lesão corporal", "latrocínio", "estupro", "roubo"]
+        crime_violento = any(violento in crime_info['descricao_completa'].lower() for violento in crimes_violentos)
+        
+        if not crime_violento:
+            condicoes.append("✅ Crime sem violência ou grave ameaça")
+            pode_substituir = True
+        else:
+            condicoes.append("❌ Crime com violência ou grave ameaça")
+    else:
+        condicoes.append("❌ Pena superior a 4 anos")
+    
+    # Condição II: Não reincidente
+    if not reincidente:
+        condicoes.append("✅ Réu não reincidente")
+        pode_substituir = pode_substituir and True
+    else:
+        condicoes.append("❌ Réu reincidente")
+        # Exceção: Art. 44, §3º - Juiz pode aplicar mesmo para reincidente em casos específicos
+        condicoes.append("⚠️ Juiz pode analisar aplicação excepcional")
+    
+    # Condição III: Análise do Art. 59
+    condicoes.append("✅ Análise favorável dos critérios do Art. 59")
+    
+    if pode_substituir:
         substituicao = "**CABE SUBSTITUIÇÃO** por pena restritiva de direitos"
         cor_subst = "#44cc44"
-        fundamento = "Art. 44 CP - Penas até 4 anos podem ser substituídas"
+        fundamento_subst = "Art. 44 CP - Preenchidos os requisitos legais"
+        
+        # Tipos de penas restritivas possíveis
+        st.subheader("📋 Penas Restritivas de Direitos Possíveis (Art. 43 CP)")
+        
+        col_penas1, col_penas2 = st.columns(2)
+        
+        with col_penas1:
+            st.write("""
+            **Penas Restritivas:**
+            - 💰 Prestação pecuniária
+            - 🏛️ Prestação de serviços à comunidade
+            - 🚫 Interdição temporária de direitos
+            - 🎯 Limitação de fim de semana
+            - 📉 Perda de bens e valores
+            """)
+        
+        with col_penas2:
+            st.write("""
+            **Regras de Conversão:**
+            - Pena ≤ 1 ano: multa OU 1 restritiva
+            - Pena > 1 ano: 1 restritiva + multa OU 2 restritivas
+            - Descumprimento: conversão em privativa (Art. 44, §4º)
+            """)
+    
     else:
         substituicao = "**NÃO CABE SUBSTITUIÇÃO**"
         cor_subst = "#ff4444"
-        fundamento = "Art. 44 CP - Penas superiores a 4 anos não podem ser substituídas"
+        fundamento_subst = "Art. 44 CP - Não preenchidos os requisitos legais"
     
     st.markdown(f"""
     <div style="background-color: {cor_subst}20; padding: 15px; border-radius: 10px; border-left: 5px solid {cor_subst};">
         <h3 style="color: {cor_subst}; margin: 0;">{substituicao}</h3>
-        <p style="margin: 5px 0 0 0;">{fundamento}</p>
+        <p style="margin: 5px 0 0 0;">{fundamento_subst}</p>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Mostrar condições analisadas
+    st.write("**📝 Condições analisadas para substituição:**")
+    for condicao in condicoes:
+        st.write(condicao)
 
-    # GRÁFICOS PLOTLY CORRIGIDOS
+    # GRÁFICOS PLOTLY
     st.header("📊 Visualização da Dosimetria")
     
     # Gráfico 1: Composição da Pena
@@ -369,98 +487,6 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
                             annotation_position="top right")
     
     st.plotly_chart(fig_composicao, use_container_width=True)
-    
-    # Gráfico 2: Evolução Temporal
-    st.subheader("📈 Evolução da Pena nas Fases")
-    
-    fases = ["Pena Base", "Circunstância", "Atenuantes", "Agravantes", "Majorantes", "Minorantes", "Pena Final"]
-    valores_fases = [pena_base_inicial, pena_base_ajustada]
-    
-    # Calcular valores intermediários
-    valor_atual = pena_base_ajustada
-    for reducao in ajustes_atenuantes:
-        valor_atual -= reducao
-        valores_fases.append(valor_atual)
-    
-    for aumento in ajustes_agravantes:
-        valor_atual += aumento
-        valores_fases.append(valor_atual)
-    
-    for aumento in ajustes_majorantes:
-        valor_atual += aumento
-        valores_fases.append(valor_atual)
-    
-    for reducao in ajustes_minorantes:
-        valor_atual -= reducao
-        valores_fases.append(valor_atual)
-    
-    valores_fases.append(pena_final)
-    
-    fig_evolucao = go.Figure()
-    
-    fig_evolucao.add_trace(go.Scatter(
-        x=fases,
-        y=valores_fases,
-        mode='lines+markers+text',
-        line=dict(color='#2196F3', width=4),
-        marker=dict(size=10, color='#2196F3'),
-        text=[f"{v:.1f}a" for v in valores_fases],
-        textposition="top center",
-        hovertemplate="<b>%{x}</b><br>Pena: %{y:.1f} anos<extra></extra>",
-        name="Evolução da Pena"
-    ))
-    
-    # Adicionar área de regime
-    fig_evolucao.add_hrect(y0=0, y1=4, line_width=0, fillcolor="green", opacity=0.1, 
-                          annotation_text="Aberto", annotation_position="left")
-    fig_evolucao.add_hrect(y0=4, y1=8, line_width=0, fillcolor="yellow", opacity=0.1,
-                          annotation_text="Semiaberto", annotation_position="left")
-    fig_evolucao.add_hrect(y0=8, y1=max(max_pena, max(valores_fases)) + 2, line_width=0, 
-                          fillcolor="red", opacity=0.1, annotation_text="Fechado", annotation_position="left")
-    
-    fig_evolucao.update_layout(
-        title="Evolução da Pena ao Longo das Fases da Dosimetria",
-        xaxis_title="Fases do Cálculo",
-        yaxis_title="Anos de Pena",
-        height=500,
-        plot_bgcolor='rgba(240,240,240,0.8)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(size=12),
-        margin=dict(l=50, r=50, t=80, b=50),
-        xaxis=dict(tickangle=45)
-    )
-    
-    st.plotly_chart(fig_evolucao, use_container_width=True)
-
-    # Gráfico 3: Distribuição dos Componentes (substitui o gráfico problemático)
-    st.subheader("📊 Distribuição dos Componentes")
-    
-    # Filtrar apenas componentes positivos para o gráfico de pizza
-    componentes_positivos = [v for v in valores if v > 0]
-    categorias_positivas = [c for c, v in zip(categorias, valores) if v > 0]
-    cores_positivas = [c for c, v in zip(cores, valores) if v > 0]
-    
-    if componentes_positivos:
-        fig_pizza = go.Figure(data=[go.Pie(
-            labels=categorias_positivas,
-            values=componentes_positivos,
-            hole=0.4,
-            marker_colors=cores_positivas,
-            textinfo='label+percent',
-            hovertemplate="<b>%{label}</b><br>Valor: %{value:.1f} anos<br>Percentual: %{percent}<extra></extra>"
-        )])
-        
-        fig_pizza.update_layout(
-            title="Distribuição dos Componentes Positivos da Pena",
-            height=400,
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(size=12),
-            margin=dict(l=50, r=50, t=80, b=50)
-        )
-        
-        st.plotly_chart(fig_pizza, use_container_width=True)
-    else:
-        st.info("Não há componentes positivos para exibir no gráfico de distribuição.")
 
     # Resumo final estilizado
     st.markdown(f"""
@@ -472,46 +498,77 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
                 <div style="font-size: 24px; font-weight: bold; color: #2196F3;">{pena_final:.1f} anos</div>
             </div>
             <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
+                <div style="font-weight: bold; color: #333; font-size: 16px;">Tipo de Pena</div>
+                <div style="font-size: 16px; font-weight: bold; color: {cor_tipo_pena};">{tipo_pena}</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
                 <div style="font-weight: bold; color: #333; font-size: 16px;">Regime</div>
-                <div style="font-size: 20px; font-weight: bold; color: {cor_regime};">{regime}</div>
+                <div style="font-size: 16px; font-weight: bold; color: {cor_regime};">{regime}</div>
             </div>
             <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
                 <div style="font-weight: bold; color: #333; font-size: 16px;">Substituição</div>
-                <div style="font-size: 16px; font-weight: bold; color: {cor_subst};">{substituicao.replace('**', '')}</div>
+                <div style="font-size: 14px; font-weight: bold; color: {cor_subst};">{substituicao.replace('**', '')}</div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# Tabelas de Referência
-st.header("📋 Tabela de Referência")
-col1, col2, col3 = st.columns(3)
+# SEÇÃO DE REFERÊNCIAS LEGAIS COMPLETAS
+st.header("📚 Referências Legais Completas")
 
-with col1:
-    st.subheader("📊 Regimes")
-    st.table(pd.DataFrame([
-        {"Pena": "Até 4 anos", "Regime": "Aberto"},
-        {"Pena": "4 a 8 anos", "Regime": "Semiaberto"},
-        {"Pena": "Acima de 8 anos", "Regime": "Fechado"}
-    ]))
+tab1, tab2, tab3, tab4 = st.tabs(["📋 Regimes", "⚖️ Penas Restritivas", "🔍 Súmulas", "📊 Progressão"])
 
-with col2:
-    st.subheader("⚖️ Fatores")
-    st.table(pd.DataFrame([
-        {"Fator": "Atenuante", "Ajuste": "-1/6"},
-        {"Fator": "Agravante", "Ajuste": "+1/6"},
-        {"Fator": "Majorante", "Ajuste": "+1/6 a +1/2"},
-        {"Fator": "Minorante", "Ajuste": "-1/6 a -1/3"}
-    ]))
+with tab1:
+    st.subheader("Art. 33 CP - Reclusão e Detenção")
+    st.write("""
+    **§ 1º - Considera-se:**
+    - 🔒 **Regime Fechado**: Execução em estabelecimento de segurança máxima/média
+    - 🔐 **Regime Semiaberto**: Execução em colônia agrícola, industrial ou similar  
+    - 🔓 **Regime Aberto**: Execução em casa de albergado
+    
+    **§ 2º - Critérios para regime inicial:**
+    - Pena > 8 anos: FECHADO
+    - Pena 4-8 anos (não reincidente): SEMIABERTO
+    - Pena ≤ 4 anos (não reincidente): ABERTO
+    """)
 
-with col3:
-    st.subheader("🔀 Substituição")
-    st.table(pd.DataFrame([
-        {"Condição": "Pena ≤ 4 anos", "Substitui": "Sim"},
-        {"Condição": "Pena > 4 anos", "Substitui": "Não"},
-        {"Condição": "Réu reincidente", "Substitui": "Restrita"}
-    ]))
+with tab2:
+    st.subheader("Arts. 43-48 CP - Penas Restritivas de Direitos")
+    st.write("""
+    **Art. 43 - Espécies:**
+    - 💰 Prestação pecuniária
+    - 📉 Perda de bens e valores  
+    - 🏛️ Prestação de serviços à comunidade
+    - 🚫 Interdição temporária de direitos
+    - 🎯 Limitação de fim de semana
+    
+    **Art. 44 - Requisitos para substituição:**
+    - Pena ≤ 4 anos + crime sem violência
+    - Não reincidente em crime doloso
+    - Análise favorável do Art. 59
+    """)
+
+with tab3:
+    st.subheader("Súmulas Relevantes")
+    st.write("""
+    **Súmula 231 STJ:**
+    - A substituição da pena privativa por restritiva de direitos pressupõe requisitos cumulativos
+    
+    **Súmula 444 STJ:**
+    - A dosimetria da pena deve observar o sistema trifásico do Art. 68 CP
+    - O juiz deve fundamentar cada fase do cálculo
+    """)
+
+with tab4:
+    st.subheader("Progressão de Regime")
+    st.write("""
+    **Regras de progressão:**
+    - 1/6 da pena no regime anterior (condenação comum)
+    - 2/5 da pena para crimes hediondos
+    - Requer bom comportamento e demais requisitos
+    - Análise pelo Juízo da Execução Penal
+    """)
 
 st.markdown("---")
 st.write("**⚖️ Ferramenta educacional - Consulte sempre a legislação atual e um profissional do direito**")
-st.write("**📚 Base legal:** Arts. 59, 61, 65, 68 do Código Penal Brasileiro")
+st.write("**📚 Base legal:** Arts. 33, 43-48, 59, 61, 65, 68 do Código Penal Brasileiro")
