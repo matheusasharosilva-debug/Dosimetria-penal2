@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 st.title("⚖️ Simulador de Dosimetria da Pena")
 st.write("**Calculadora completa da dosimetria penal conforme Art. 68 do CP**")
@@ -281,125 +284,227 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     </div>
     """, unsafe_allow_html=True)
 
-    # GRÁFICO MELHORADO - Composição da Pena
-    st.header("📊 Composição da Pena Final")
+    # GRÁFICOS PLOTLY PROFISSIONAIS
+    st.header("📊 Visualização da Dosimetria")
     
-    # Preparar dados para o gráfico
-    componentes = []
+    # Gráfico 1: Composição da Pena
+    st.subheader("🎯 Composição da Pena Final")
+    
+    # Preparar dados para o gráfico de composição
+    categorias = []
     valores = []
     cores = []
+    textos = []
     
     # Pena base
-    componentes.append("Pena Base")
+    categorias.append("Pena Base")
     valores.append(pena_base_inicial)
     cores.append("#2196F3")
+    textos.append(f"Base: {pena_base_inicial:.1f} anos")
     
     # Ajuste por circunstância
     if fator_circunstancia > 0:
-        componentes.append(f"Circunstância ({circunstancia})")
+        categorias.append(f"Circunstância<br>({circunstancia})")
         valores.append(pena_base_ajustada - pena_base_inicial)
         cores.append("#9C27B0")
+        textos.append(f"+{(pena_base_ajustada - pena_base_inicial):.1f} anos")
     
     # Atenuantes
-    for i, reducao in enumerate(ajustes_atenuantes, 1):
-        componentes.append(f"Atenuante {i}")
-        valores.append(-reducao)
+    if ajustes_atenuantes:
+        categorias.append("Atenuantes")
+        valores.append(-sum(ajustes_atenuantes))
         cores.append("#4CAF50")
+        textos.append(f"-{sum(ajustes_atenuantes):.1f} anos")
     
     # Agravantes
-    for i, aumento in enumerate(ajustes_agravantes, 1):
-        componentes.append(f"Agravante {i}")
-        valores.append(aumento)
+    if ajustes_agravantes:
+        categorias.append("Agravantes")
+        valores.append(sum(ajustes_agravantes))
         cores.append("#FF9800")
+        textos.append(f"+{sum(ajustes_agravantes):.1f} anos")
     
     # Majorantes
-    for i, aumento in enumerate(ajustes_majorantes, 1):
-        componentes.append(f"Majorante {i}")
-        valores.append(aumento)
+    if ajustes_majorantes:
+        categorias.append("Majorantes")
+        valores.append(sum(ajustes_majorantes))
         cores.append("#F44336")
+        textos.append(f"+{sum(ajustes_majorantes):.1f} anos")
     
     # Minorantes
-    for i, reducao in enumerate(ajustes_minorantes, 1):
-        componentes.append(f"Minorante {i}")
-        valores.append(-reducao)
+    if ajustes_minorantes:
+        categorias.append("Minorantes")
+        valores.append(-sum(ajustes_minorantes))
         cores.append("#00BCD4")
+        textos.append(f"-{sum(ajustes_minorantes):.1f} anos")
     
-    # Criar gráfico de barras
-    fig = go.Figure()
+    # Criar gráfico de barras horizontal
+    fig_composicao = go.Figure()
     
-    for i, (componente, valor, cor) in enumerate(zip(componentes, valores, cores)):
-        fig.add_trace(go.Bar(
-            x=[valor],
-            y=[componente],
+    for i, (cat, val, cor, texto) in enumerate(zip(categorias, valores, cores, textos)):
+        fig_composicao.add_trace(go.Bar(
+            y=[cat],
+            x=[val],
             orientation='h',
-            name=componente,
             marker_color=cor,
-            text=[f"{valor:+.1f} anos"],
+            text=[texto],
             textposition='auto',
-            hovertemplate=f"<b>{componente}</b><br>Valor: {valor:+.1f} anos<extra></extra>"
+            hovertemplate=f"<b>{cat}</b><br>Valor: {val:+.1f} anos<extra></extra>",
+            name=cat
         ))
     
-    # Adicionar linha da pena final
-    fig.add_vline(x=pena_final, line_dash="dash", line_color="#FF5722", 
-                  annotation_text=f"Pena Final: {pena_final:.1f} anos",
-                  annotation_position="top right")
-    
-    fig.update_layout(
-        title="Evolução da Dosimetria da Pena",
+    fig_composicao.update_layout(
+        title="Impacto dos Componentes na Pena Final",
         xaxis_title="Anos de Pena",
         yaxis_title="Componentes",
         showlegend=False,
         height=400,
-        plot_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(240,240,240,0.8)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(size=12),
-        margin=dict(l=50, r=50, t=50, b=50)
+        margin=dict(l=50, r=50, t=80, b=50)
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    # Adicionar linha da pena final
+    fig_composicao.add_vline(x=pena_final, line_dash="dash", line_color="#FF5722", 
+                            annotation_text=f"Pena Final: {pena_final:.1f} anos",
+                            annotation_position="top right")
     
-    # Gráfico de faixa de pena
-    st.subheader("📈 Faixa Legal da Pena")
+    st.plotly_chart(fig_composicao, use_container_width=True)
     
-    fig_faixa = go.Figure()
+    # Gráfico 2: Evolução Temporal
+    st.subheader("📈 Evolução da Pena nas Fases")
     
-    # Adicionar faixa de pena
-    fig_faixa.add_trace(go.Scatter(
-        x=[min_pena, max_pena],
-        y=["Faixa Legal", "Faixa Legal"],
-        mode='lines',
-        line=dict(color='lightgray', width=20),
-        name="Faixa Legal",
-        hoverinfo='skip'
-    ))
+    fases = ["Pena Base", "Circunstância", "Atenuantes", "Agravantes", "Majorantes", "Minorantes", "Pena Final"]
+    valores_fases = [pena_base_inicial, pena_base_ajustada]
     
-    # Adicionar marcadores
-    fig_faixa.add_trace(go.Scatter(
-        x=[pena_base_inicial, pena_base_ajustada, pena_final],
-        y=["Faixa Legal", "Faixa Legal", "Faixa Legal"],
-        mode='markers+text',
-        marker=dict(size=15, color=['#2196F3', '#9C27B0', '#FF5722']),
-        text=["Base", "Ajustada", "Final"],
+    # Calcular valores intermediários
+    valor_atual = pena_base_ajustada
+    for reducao in ajustes_atenuantes:
+        valor_atual -= reducao
+        valores_fases.append(valor_atual)
+    
+    for aumento in ajustes_agravantes:
+        valor_atual += aumento
+        valores_fases.append(valor_atual)
+    
+    for aumento in ajustes_majorantes:
+        valor_atual += aumento
+        valores_fases.append(valor_atual)
+    
+    for reducao in ajustes_minorantes:
+        valor_atual -= reducao
+        valores_fases.append(valor_atual)
+    
+    valores_fases.append(pena_final)
+    
+    fig_evolucao = go.Figure()
+    
+    fig_evolucao.add_trace(go.Scatter(
+        x=fases,
+        y=valores_fases,
+        mode='lines+markers+text',
+        line=dict(color='#2196F3', width=4),
+        marker=dict(size=10, color='#2196F3'),
+        text=[f"{v:.1f}a" for v in valores_fases],
         textposition="top center",
-        name="Evolução",
-        hovertemplate="<b>%{text}</b><br>Valor: %{x:.1f} anos<extra></extra>"
+        hovertemplate="<b>%{x}</b><br>Pena: %{y:.1f} anos<extra></extra>",
+        name="Evolução da Pena"
     ))
     
-    fig_faixa.update_layout(
-        title="Evolução na Faixa Legal da Pena",
-        xaxis_title="Anos de Pena",
-        yaxis=dict(showticklabels=False),
-        height=200,
-        showlegend=False,
-        plot_bgcolor='rgba(0,0,0,0)',
+    # Adicionar área de regime
+    fig_evolucao.add_hrect(y0=0, y1=4, line_width=0, fillcolor="green", opacity=0.1, 
+                          annotation_text="Aberto", annotation_position="left")
+    fig_evolucao.add_hrect(y0=4, y1=8, line_width=0, fillcolor="yellow", opacity=0.1,
+                          annotation_text="Semiaberto", annotation_position="left")
+    fig_evolucao.add_hrect(y0=8, y1=max(max_pena, max(valores_fases)) + 2, line_width=0, 
+                          fillcolor="red", opacity=0.1, annotation_text="Fechado", annotation_position="left")
+    
+    fig_evolucao.update_layout(
+        title="Evolução da Pena ao Longo das Fases da Dosimetria",
+        xaxis_title="Fases do Cálculo",
+        yaxis_title="Anos de Pena",
+        height=500,
+        plot_bgcolor='rgba(240,240,240,0.8)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=50, r=50, t=50, b=50)
+        font=dict(size=12),
+        margin=dict(l=50, r=50, t=80, b=50),
+        xaxis=dict(tickangle=45)
     )
     
-    st.plotly_chart(fig_faixa, use_container_width=True)
+    st.plotly_chart(fig_evolucao, use_container_width=True)
     
-    # Resumo final
-    st.success(f"**RESUMO FINAL:** Pena de {pena_final:.1f} anos - Regime {regime} - {substituicao}")
+    # Gráfico 3: Comparação com Faixa Legal
+    st.subheader("⚖️ Comparação com a Faixa Legal")
+    
+    fig_comparacao = make_subplots(rows=1, cols=2, 
+                                 subplot_titles=('Distribuição dos Componentes', 'Posição na Faixa Legal'),
+                                 specs=[[{"type": "pie"}, {"type": "xy"}]])
+    
+    # Gráfico de pizza - Distribuição
+    componentes_positivos = [v for v in valores if v > 0]
+    categorias_positivas = [c for c, v in zip(categorias, valores) if v > 0]
+    cores_positivas = [c for c, v in zip(cores, valores) if v > 0]
+    
+    fig_comparacao.add_trace(go.Pie(
+        labels=categorias_positivas,
+        values=componentes_positivos,
+        marker_colors=cores_positivas,
+        hole=0.4,
+        name="Componentes Positivos"
+    ), row=1, col=1)
+    
+    # Gráfico de faixa legal
+    fig_comparacao.add_trace(go.Indicator(
+        mode = "gauge+number+delta",
+        value = pena_final,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': f"Pena Final ({regime})"},
+        delta = {'reference': pena_base_inicial, 'relative': False},
+        gauge = {
+            'axis': {'range': [min_pena, max_pena]},
+            'bar': {'color': "#FF5722"},
+            'steps': [
+                {'range': [min_pena, 4], 'color': "lightgreen"},
+                {'range': [4, 8], 'color': "lightyellow"},
+                {'range': [8, max_pena], 'color': "lightcoral"}
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': pena_final
+            }
+        }
+    ), row=1, col=2)
+    
+    fig_comparacao.update_layout(
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=12),
+        margin=dict(l=50, r=50, t=80, b=50)
+    )
+    
+    st.plotly_chart(fig_comparacao, use_container_width=True)
+    
+    # Resumo final estilizado
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; margin: 20px 0; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.2);">
+        <h3 style="color: white; margin: 0 0 15px 0; font-weight: 600;">🎯 RESUMO FINAL DA DOSIMETRIA</h3>
+        <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap;">
+            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
+                <div style="font-weight: bold; color: #333; font-size: 16px;">Pena Final</div>
+                <div style="font-size: 24px; font-weight: bold; color: #2196F3;">{pena_final:.1f} anos</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
+                <div style="font-weight: bold; color: #333; font-size: 16px;">Regime</div>
+                <div style="font-size: 20px; font-weight: bold; color: {cor_regime};">{regime}</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
+                <div style="font-weight: bold; color: #333; font-size: 16px;">Substituição</div>
+                <div style="font-size: 16px; font-weight: bold; color: {cor_subst};">{substituicao.replace('**', '')}</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Tabelas de Referência
 st.header("📋 Tabela de Referência")
