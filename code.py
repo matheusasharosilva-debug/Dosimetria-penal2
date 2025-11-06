@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
 
 st.title("⚖️ Simulador de Dosimetria da Pena")
 st.write("**Calculadora completa da dosimetria penal conforme Art. 68 do CP**")
@@ -284,7 +283,7 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     </div>
     """, unsafe_allow_html=True)
 
-    # GRÁFICOS PLOTLY PROFISSIONAIS
+    # GRÁFICOS PLOTLY CORRIGIDOS
     st.header("📊 Visualização da Dosimetria")
     
     # Gráfico 1: Composição da Pena
@@ -432,59 +431,37 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     )
     
     st.plotly_chart(fig_evolucao, use_container_width=True)
+
+    # Gráfico 3: Distribuição dos Componentes (substitui o gráfico problemático)
+    st.subheader("📊 Distribuição dos Componentes")
     
-    # Gráfico 3: Comparação com Faixa Legal
-    st.subheader("⚖️ Comparação com a Faixa Legal")
-    
-    fig_comparacao = make_subplots(rows=1, cols=2, 
-                                 subplot_titles=('Distribuição dos Componentes', 'Posição na Faixa Legal'),
-                                 specs=[[{"type": "pie"}, {"type": "xy"}]])
-    
-    # Gráfico de pizza - Distribuição
+    # Filtrar apenas componentes positivos para o gráfico de pizza
     componentes_positivos = [v for v in valores if v > 0]
     categorias_positivas = [c for c, v in zip(categorias, valores) if v > 0]
     cores_positivas = [c for c, v in zip(cores, valores) if v > 0]
     
-    fig_comparacao.add_trace(go.Pie(
-        labels=categorias_positivas,
-        values=componentes_positivos,
-        marker_colors=cores_positivas,
-        hole=0.4,
-        name="Componentes Positivos"
-    ), row=1, col=1)
-    
-    # Gráfico de faixa legal
-    fig_comparacao.add_trace(go.Indicator(
-        mode = "gauge+number+delta",
-        value = pena_final,
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': f"Pena Final ({regime})"},
-        delta = {'reference': pena_base_inicial, 'relative': False},
-        gauge = {
-            'axis': {'range': [min_pena, max_pena]},
-            'bar': {'color': "#FF5722"},
-            'steps': [
-                {'range': [min_pena, 4], 'color': "lightgreen"},
-                {'range': [4, 8], 'color': "lightyellow"},
-                {'range': [8, max_pena], 'color': "lightcoral"}
-            ],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': pena_final
-            }
-        }
-    ), row=1, col=2)
-    
-    fig_comparacao.update_layout(
-        height=400,
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(size=12),
-        margin=dict(l=50, r=50, t=80, b=50)
-    )
-    
-    st.plotly_chart(fig_comparacao, use_container_width=True)
-    
+    if componentes_positivos:
+        fig_pizza = go.Figure(data=[go.Pie(
+            labels=categorias_positivas,
+            values=componentes_positivos,
+            hole=0.4,
+            marker_colors=cores_positivas,
+            textinfo='label+percent',
+            hovertemplate="<b>%{label}</b><br>Valor: %{value:.1f} anos<br>Percentual: %{percent}<extra></extra>"
+        )])
+        
+        fig_pizza.update_layout(
+            title="Distribuição dos Componentes Positivos da Pena",
+            height=400,
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(size=12),
+            margin=dict(l=50, r=50, t=80, b=50)
+        )
+        
+        st.plotly_chart(fig_pizza, use_container_width=True)
+    else:
+        st.info("Não há componentes positivos para exibir no gráfico de distribuição.")
+
     # Resumo final estilizado
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; margin: 20px 0; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.2);">
