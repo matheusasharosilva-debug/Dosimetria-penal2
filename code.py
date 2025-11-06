@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
 
 st.title("⚖️ Simulador de Dosimetria da Pena")
 st.write("**Calculadora completa da dosimetria penal conforme Art. 68 do CP**")
@@ -202,27 +204,35 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     calculo_detalhado = f"| Etapa | Valor | Ajuste |\n|-------|-------|---------|\n| **Pena Base Inicial** | {pena_base_inicial:.1f} anos | - |\n| Circunstância {circunstancia} | {pena_base_ajustada:.1f} anos | {fator_circunstancia*100:+.0f}% |\n"
     
     # Aplicar atenuantes
+    ajustes_atenuantes = []
     for i, atenuante in enumerate(atenuantes, 1):
         reducao = pena_base_ajustada * (1/6)
         pena_calculada -= reducao
+        ajustes_atenuantes.append(reducao)
         calculo_detalhado += f"| Atenuante {i} | {pena_calculada:.1f} anos | -{reducao:.1f} anos |\n"
     
     # Aplicar agravantes
+    ajustes_agravantes = []
     for i, agravante in enumerate(agravantes, 1):
         aumento = pena_base_ajustada * (1/6)
         pena_calculada += aumento
+        ajustes_agravantes.append(aumento)
         calculo_detalhado += f"| Agravante {i} | {pena_calculada:.1f} anos | +{aumento:.1f} anos |\n"
     
     # Aplicar majorantes
+    ajustes_majorantes = []
     for i, majorante in enumerate(majorantes, 1):
         aumento = pena_base_ajustada * (1/4)
         pena_calculada += aumento
+        ajustes_majorantes.append(aumento)
         calculo_detalhado += f"| Majorante {i} | {pena_calculada:.1f} anos | +{aumento:.1f} anos |\n"
     
     # Aplicar minorantes
+    ajustes_minorantes = []
     for i, minorante in enumerate(minorantes, 1):
         reducao = pena_base_ajustada * (1/4)
         pena_calculada -= reducao
+        ajustes_minorantes.append(reducao)
         calculo_detalhado += f"| Minorante {i} | {pena_calculada:.1f} anos | -{reducao:.1f} anos |\n"
     
     # Aplicar limites legais
@@ -273,104 +283,125 @@ if st.button("🎯 Calcular Pena Definitiva", type="primary"):
     </div>
     """, unsafe_allow_html=True)
 
-    # Gráfico da Dosimetria - VERSÃO CORRIGIDA
-    st.header("📊 Evolução da Dosimetria da Pena")
+    # GRÁFICO MELHORADO - Composição da Pena
+    st.header("📊 Composição da Pena Final")
     
-    # Calcular posições no gráfico
-    faixa_total = max_pena - min_pena
-    if faixa_total > 0:
-        pos_base = ((pena_base_inicial - min_pena) / faixa_total) * 100
-        pos_ajustada = ((pena_base_ajustada - min_pena) / faixa_total) * 100
-        pos_final = ((pena_final - min_pena) / faixa_total) * 100
-    else:
-        pos_base = pos_ajustada = pos_final = 50
-
-    # Gráfico melhorado usando st.components.v1.html
-    html_content = f'''
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; margin: 20px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-        <h4 style="text-align: center; margin-bottom: 30px; color: white; font-weight: 600;">Evolução da Dosimetria da Pena</h4>
-        
-        <!-- Barra de progresso principal -->
-        <div style="position: relative; height: 80px; background: rgba(255,255,255,0.2); border-radius: 40px; border: 3px solid rgba(255,255,255,0.3); margin-bottom: 80px; overflow: hidden;">
-            <!-- Faixas de regime -->
-            <div style="position: absolute; left: 0%; width: 33.3%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-right: 2px dashed white;"></div>
-            <div style="position: absolute; left: 33.3%; width: 33.3%; height: 100%; background: linear-gradient(90deg, #FFC107, #FF9800); border-right: 2px dashed white;"></div>
-            <div style="position: absolute; left: 66.6%; width: 33.4%; height: 100%; background: linear-gradient(90deg, #F44336, #E91E63);"></div>
-            
-            <!-- Marcadores -->
-            <div style="position: absolute; left: {pos_base}%; top: 0; bottom: 0; width: 6px; background: #2196F3; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 10px rgba(33, 150, 243, 0.8);">
-                <div style="position: absolute; top: -45px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #2196F3; padding: 8px 12px; border-radius: 20px; border: 2px solid white; font-size: 12px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                    ⚖️ Base: {pena_base_inicial:.1f} anos
-                </div>
-            </div>
-            
-            <div style="position: absolute; left: {pos_ajustada}%; top: 0; bottom: 0; width: 6px; background: #9C27B0; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 10px rgba(156, 39, 176, 0.8);">
-                <div style="position: absolute; top: -45px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #9C27B0; padding: 8px 12px; border-radius: 20px; border: 2px solid white; font-size: 12px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                    📈 Ajustada: {pena_base_ajustada:.1f} anos
-                </div>
-            </div>
-            
-            <div style="position: absolute; left: {pos_final}%; top: 0; bottom: 0; width: 8px; background: #FF5722; transform: translateX(-50%); border-radius: 4px; box-shadow: 0 0 15px rgba(255, 87, 34, 0.9);">
-                <div style="position: absolute; bottom: -50px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #FF5722; padding: 10px 15px; border-radius: 25px; border: 2px solid white; font-size: 13px; font-weight: bold; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-                    🎯 Final: {pena_final:.1f} anos
-                </div>
-            </div>
-        </div>
-        
-        <!-- Legenda dos regimes -->
-        <div style="display: flex; justify-content: space-between; margin-top: 30px;">
-            <div style="text-align: center; flex: 1; margin: 0 5px;">
-                <div style="background: linear-gradient(135deg, #4CAF50, #66BB6A); padding: 12px; border-radius: 10px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                    <div style="font-weight: bold; color: white; font-size: 14px;">🔓 ABERTO</div>
-                    <div style="color: rgba(255,255,255,0.9); font-size: 11px;">Até 4 anos</div>
-                </div>
-            </div>
-            <div style="text-align: center; flex: 1; margin: 0 5px;">
-                <div style="background: linear-gradient(135deg, #FFC107, #FFB300); padding: 12px; border-radius: 10px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                    <div style="font-weight: bold; color: white; font-size: 14px;">🔐 SEMIABERTO</div>
-                    <div style="color: rgba(255,255,255,0.9); font-size: 11px;">4 a 8 anos</div>
-                </div>
-            </div>
-            <div style="text-align: center; flex: 1; margin: 0 5px;">
-                <div style="background: linear-gradient(135deg, #F44336, #EF5350); padding: 12px; border-radius: 10px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                    <div style="font-weight: bold; color: white; font-size: 14px;">🔒 FECHADO</div>
-                    <div style="color: rgba(255,255,255,0.9); font-size: 11px;">Acima de 8 anos</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Escala numérica -->
-        <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 0 10px;">
-            <div style="color: white; font-size: 12px; font-weight: 500;">{min_pena:.1f} anos</div>
-            <div style="color: white; font-size: 12px; font-weight: 500;">{(min_pena + max_pena)/2:.1f} anos</div>
-            <div style="color: white; font-size: 12px; font-weight: 500;">{max_pena:.1f} anos</div>
-        </div>
-    </div>
-    '''
+    # Preparar dados para o gráfico
+    componentes = []
+    valores = []
+    cores = []
     
-    # Usar st.components.v1.html para renderizar o HTML corretamente
-    st.components.v1.html(html_content, height=400)
+    # Pena base
+    componentes.append("Pena Base")
+    valores.append(pena_base_inicial)
+    cores.append("#2196F3")
     
-    # Resumo final estilizado
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; margin: 20px 0; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.2);">
-        <h3 style="color: white; margin: 0 0 15px 0; font-weight: 600;">🎯 RESUMO FINAL</h3>
-        <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap;">
-            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
-                <div style="font-weight: bold; color: #333; font-size: 16px;">Pena Final</div>
-                <div style="font-size: 24px; font-weight: bold; color: #2196F3;">{pena_final:.1f} anos</div>
-            </div>
-            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
-                <div style="font-weight: bold; color: #333; font-size: 16px;">Regime</div>
-                <div style="font-size: 20px; font-weight: bold; color: {cor_regime};">{regime}</div>
-            </div>
-            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin: 5px; min-width: 200px;">
-                <div style="font-weight: bold; color: #333; font-size: 16px;">Substituição</div>
-                <div style="font-size: 16px; font-weight: bold; color: {cor_subst};">{substituicao.replace('**', '')}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Ajuste por circunstância
+    if fator_circunstancia > 0:
+        componentes.append(f"Circunstância ({circunstancia})")
+        valores.append(pena_base_ajustada - pena_base_inicial)
+        cores.append("#9C27B0")
+    
+    # Atenuantes
+    for i, reducao in enumerate(ajustes_atenuantes, 1):
+        componentes.append(f"Atenuante {i}")
+        valores.append(-reducao)
+        cores.append("#4CAF50")
+    
+    # Agravantes
+    for i, aumento in enumerate(ajustes_agravantes, 1):
+        componentes.append(f"Agravante {i}")
+        valores.append(aumento)
+        cores.append("#FF9800")
+    
+    # Majorantes
+    for i, aumento in enumerate(ajustes_majorantes, 1):
+        componentes.append(f"Majorante {i}")
+        valores.append(aumento)
+        cores.append("#F44336")
+    
+    # Minorantes
+    for i, reducao in enumerate(ajustes_minorantes, 1):
+        componentes.append(f"Minorante {i}")
+        valores.append(-reducao)
+        cores.append("#00BCD4")
+    
+    # Criar gráfico de barras
+    fig = go.Figure()
+    
+    for i, (componente, valor, cor) in enumerate(zip(componentes, valores, cores)):
+        fig.add_trace(go.Bar(
+            x=[valor],
+            y=[componente],
+            orientation='h',
+            name=componente,
+            marker_color=cor,
+            text=[f"{valor:+.1f} anos"],
+            textposition='auto',
+            hovertemplate=f"<b>{componente}</b><br>Valor: {valor:+.1f} anos<extra></extra>"
+        ))
+    
+    # Adicionar linha da pena final
+    fig.add_vline(x=pena_final, line_dash="dash", line_color="#FF5722", 
+                  annotation_text=f"Pena Final: {pena_final:.1f} anos",
+                  annotation_position="top right")
+    
+    fig.update_layout(
+        title="Evolução da Dosimetria da Pena",
+        xaxis_title="Anos de Pena",
+        yaxis_title="Componentes",
+        showlegend=False,
+        height=400,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=12),
+        margin=dict(l=50, r=50, t=50, b=50)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Gráfico de faixa de pena
+    st.subheader("📈 Faixa Legal da Pena")
+    
+    fig_faixa = go.Figure()
+    
+    # Adicionar faixa de pena
+    fig_faixa.add_trace(go.Scatter(
+        x=[min_pena, max_pena],
+        y=["Faixa Legal", "Faixa Legal"],
+        mode='lines',
+        line=dict(color='lightgray', width=20),
+        name="Faixa Legal",
+        hoverinfo='skip'
+    ))
+    
+    # Adicionar marcadores
+    fig_faixa.add_trace(go.Scatter(
+        x=[pena_base_inicial, pena_base_ajustada, pena_final],
+        y=["Faixa Legal", "Faixa Legal", "Faixa Legal"],
+        mode='markers+text',
+        marker=dict(size=15, color=['#2196F3', '#9C27B0', '#FF5722']),
+        text=["Base", "Ajustada", "Final"],
+        textposition="top center",
+        name="Evolução",
+        hovertemplate="<b>%{text}</b><br>Valor: %{x:.1f} anos<extra></extra>"
+    ))
+    
+    fig_faixa.update_layout(
+        title="Evolução na Faixa Legal da Pena",
+        xaxis_title="Anos de Pena",
+        yaxis=dict(showticklabels=False),
+        height=200,
+        showlegend=False,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=50, r=50, t=50, b=50)
+    )
+    
+    st.plotly_chart(fig_faixa, use_container_width=True)
+    
+    # Resumo final
+    st.success(f"**RESUMO FINAL:** Pena de {pena_final:.1f} anos - Regime {regime} - {substituicao}")
 
 # Tabelas de Referência
 st.header("📋 Tabela de Referência")
